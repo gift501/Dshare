@@ -7,31 +7,28 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 contract DShareStorage is Ownable {
     using Strings for uint256;
 
-    /* Constants and Configuration */
-    uint256 public constant MAX_STORAGE_1GB_BYTES     = 1 * 1024 * 1024 * 1024; // 1 GB
-    uint256 public constant MAX_STORAGE_5GB_BYTES     = 5 * 1024 * 1024 * 1024; // 5 GB
+    uint256 public constant MAX_STORAGE_1GB_BYTES      = 1 * 1024 * 1024 * 1024;
+    uint256 public constant MAX_STORAGE_5GB_BYTES      = 5 * 1024 * 1024 * 1024;
     uint256 public constant UPGRADE_TO_5GB_PRICE       = 0.1 ether;
 
-    uint256 public constant SHARE_FEE                  = 10_000_000_000_000;      // 0.00001 ETH
-    uint256 public constant MIN_DOWNLOAD_PRICE         = 10_000_000_000_000;      // 0.00001 ETH
+    uint256 public constant SHARE_FEE                  = 10_000_000_000_000;
+    uint256 public constant MIN_DOWNLOAD_PRICE         = 10_000_000_000_000;
     uint256 public constant MAX_DOWNLOAD_PRICE         = 0.01 ether;
-    uint256 public constant OWNER_DOWNLOAD_FEE_PERCENT = 20;                    // 20 %
+    uint256 public constant OWNER_DOWNLOAD_FEE_PERCENT = 20;
 
     uint256 public constant UPLOAD_POINTS  = 3;
     uint256 public constant SHARE_POINTS   = 10;
     uint256 public constant DOWNLOAD_POINTS= 20;
     uint256 public constant REFERRAL_POINTS= 1000;
 
-    uint256 public constant MAX_SINGLE_UPLOAD_1GB_BYTES= 300 * 1024 * 1024;      // 300 MB
-    uint256 public constant MAX_SINGLE_UPLOAD_5GB_BYTES= 600 * 1024 * 1024;      // 600 MB
-    uint256 public constant MAX_SINGLE_SHARE_1GB_BYTES = 300 * 1024 * 1024;      // 300 MB
-    uint256 public constant MAX_SINGLE_SHARE_5GB_BYTES = 600 * 1024 * 1024;      // 600 MB
-    uint256 public constant MAX_SHARE_POINTS_THRESHOLD = 200 * 1024 * 1024;      // <= 200 MB => 10 pts
+    uint256 public constant MAX_SINGLE_UPLOAD_1GB_BYTES= 300 * 1024 * 1024;
+    uint256 public constant MAX_SINGLE_UPLOAD_5GB_BYTES= 600 * 1024 * 1024;
+    uint256 public constant MAX_SINGLE_SHARE_1GB_BYTES = 300 * 1024 * 1024;
+    uint256 public constant MAX_SINGLE_SHARE_5GB_BYTES = 600 * 1024 * 1024;
+    uint256 public constant MAX_SHARE_POINTS_THRESHOLD = 200 * 1024 * 1024;
 
-    /* Referral Window */
-    uint256 public constant REFERRAL_WINDOW = 48 hours;  // claim window after registration
+    uint256 public constant REFERRAL_WINDOW = 48 hours;
 
-    /* Data Structures */
     struct File {
         string  name;
         string  ipfsHash;
@@ -43,31 +40,27 @@ contract DShareStorage is Ownable {
         uint256 downloadPrice;
     }
 
-    /* State Variables */
-    mapping(address => File[])   public userFiles;
-    mapping(string  => File)     public filesByHash;
-    mapping(address => uint256)  public userStorageUsed;
-    mapping(address => uint256)  public userStorageLimit;
-    mapping(address => uint256)  public userPoints;
-    mapping(address => uint256)  public userBalances;
+    mapping(address => File[])  public userFiles;
+    mapping(string  => File)    public filesByHash;
+    mapping(address => uint256) public userStorageUsed;
+    mapping(address => uint256) public userStorageLimit;
+    mapping(address => uint256) public userPoints;
+    mapping(address => uint256) public userBalances;
 
-    // Global public file registry
     File[] public _publicFiles;
-    mapping(string => uint256) _publicIdx; // ipfsHash => index in _publicFiles array
+    mapping(string => uint256) _publicIdx;
 
-    /* Profile & Referral Data */
-    mapping(address => string)   public profileCID;
-    mapping(address => uint256)  public registeredAt;
-    mapping(address => bool)     public referralRedeemed;
+    mapping(address => string)  public profileCID;
+    mapping(address => uint256) public registeredAt;
+    mapping(address => bool)    public referralRedeemed;
 
-    mapping(address => string)   public userReferralCode;
-    mapping(string  => address)  public referralCodeToUser;
-    mapping(address => uint256)  public userReferralCount;
-    mapping(address => bool)     public isRegistered;
+    mapping(address => string)  public userReferralCode;
+    mapping(string  => address) public referralCodeToUser;
+    mapping(address => uint256) public userReferralCount;
+    mapping(address => bool)    public isRegistered;
 
     uint256 private _referralCodeSalt = 0;
 
-    /* Events */
     event Deposited             (address indexed user, uint256 amount);
     event Withdrawn             (address indexed user, uint256 amount);
     event StorageLimitUpgraded  (address indexed user, uint256 newLimit, uint256 pricePaid);
@@ -83,16 +76,13 @@ contract DShareStorage is Ownable {
     event PointsEarned          (address indexed user, uint256 points, string reason);
     event FeeCollected          (address indexed collector, uint256 amount, string feeType);
 
-    /* Referral-related events */
     event UserRegistered        (address indexed newUser, string profileCID);
     event ReferralCodeGenerated (address indexed user, string code);
     event ReferralCountUpdated  (address indexed referrer, uint256 newCount);
     event PointsLeaderboardUpdate(address indexed user, uint256 totalPoints);
 
-    /* Constructor */
     constructor() Ownable(msg.sender) {}
 
-    /* Fallbacks */
     receive() external payable {
         _deposit();
     }
@@ -105,7 +95,6 @@ contract DShareStorage is Ownable {
         emit Deposited(msg.sender, msg.value);
     }
 
-    /* Modifiers */
     modifier validHash(string memory cid) {
         require(bytes(cid).length > 0, "Empty hash");
         _;
@@ -114,10 +103,6 @@ contract DShareStorage is Ownable {
         require(filesByHash[cid].uploader == msg.sender, "Not uploader");
         _;
     }
-
-    /*===================================================================*/
-
-    /* User Management Functions */
 
     function registerUser(string calldata _profileCID) external {
         require(!isRegistered[msg.sender], "Already registered");
@@ -169,7 +154,7 @@ contract DShareStorage is Ownable {
                     )
                 )
             );
-            uint256 num = seed % 10_000_000; // 7-digit code
+            uint256 num = seed % 10_000_000;
             code = num.toString();
             while (bytes(code).length < 7) code = string(abi.encodePacked("0", code));
             if (referralCodeToUser[code] == address(0)) break;
@@ -177,12 +162,10 @@ contract DShareStorage is Ownable {
         }
 
         userReferralCode[msg.sender] = code;
-        referralCodeToUser[code]     = msg.sender;
+        referralCodeToUser[code]      = msg.sender;
         emit ReferralCodeGenerated(msg.sender, code);
         return code;
     }
-
-    /* Financial Functions */
 
     function deposit() external payable { _deposit(); }
 
@@ -207,8 +190,6 @@ contract DShareStorage is Ownable {
         userStorageLimit[msg.sender] = MAX_STORAGE_5GB_BYTES;
         emit StorageLimitUpgraded(msg.sender, MAX_STORAGE_5GB_BYTES, UPGRADE_TO_5GB_PRICE);
     }
-
-    /* File Management Functions */
 
     function uploadFile(
         string calldata name,
@@ -355,7 +336,6 @@ contract DShareStorage is Ownable {
         uint256 sz = f.size;
         bool wasPublic = f.isPublic;
 
-        // If the file was public, remove it from the public registry
         if (wasPublic) {
             _removePublicFile(cid);
         }
@@ -375,13 +355,12 @@ contract DShareStorage is Ownable {
         emit FileDeleted(msg.sender, cid, sz);
     }
 
-    /* Internal Functions for Public Registry Management */
     function _addPublicFile(string memory cid) internal {
         bool foundInPublic = false;
         uint256 existingIdx = _publicIdx[cid];
         if (existingIdx > 0 || (_publicFiles.length > 0 && keccak256(bytes(_publicFiles[0].ipfsHash)) == keccak256(bytes(cid)))) {
             if (existingIdx < _publicFiles.length && keccak256(bytes(_publicFiles[existingIdx].ipfsHash)) == keccak256(bytes(cid))) {
-                 foundInPublic = true;
+                    foundInPublic = true;
             }
         }
 
@@ -406,7 +385,6 @@ contract DShareStorage is Ownable {
         }
     }
 
-    /* View Functions */
     function getMyFiles() external view returns (File[] memory) { return userFiles[msg.sender]; }
 
     function getFileByHash(string calldata cid)
@@ -477,7 +455,6 @@ contract DShareStorage is Ownable {
         publicFiles = this.getAllPublicFiles(offset, limit, fileTypeFilter);
     }
 
-    /* Owner Functions */
     function withdrawContractFees(uint256 amount) external onlyOwner {
         require(amount > 0 && address(this).balance >= amount, "Invalid amount");
         payable(owner()).transfer(amount);
